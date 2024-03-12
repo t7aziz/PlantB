@@ -337,7 +337,6 @@ function updateFrogsPage() {
     frogsPage.appendChild(frogCard);
 }
 
-
 function showFrogDetails() {
     const detailContent = document.getElementById('plantDetailContent');
     const plant = frogAssignments[0];
@@ -358,13 +357,59 @@ function showFrogDetails() {
                 <p>Light Color: White</p>
             </div>
             <div id="manual" class="tabContent">
-                <button>Water Now</button>
+                <div>
+                    <label for="ipAddress">Arduino IP Address:</label>
+                    <input type="text" id="ipAddress" value="http://172.20.10.9/">
+                </div>
+                <div>
+                    <button onclick="sendRequest('ledR')">LED Red</button>
+                    <button onclick="sendRequest('ledG')">LED Green</button>
+                    <button onclick="sendRequest('ledB')">LED Blue</button>
+                    <button onclick="sendRequest('ledOff')">LED Off</button>
+                </div>
+                <div>
+                    <button onclick="sendRequest('motorOn')">Motor On</button>
+                    <button onclick="sendRequest('motorOff')">Motor Off</button>
+                </div>
+                <div>
+                    <button onclick="sendRequest('autoOn')">Auto On</button>
+                    <button onclick="sendRequest('autoOff')">Auto Off</button>
+                </div>
+                <div>
+                    <button onclick="sendRequest('pumpVar50')">Pump 50ml</button>
+                    <button onclick="sendRequest('pumpVar100')">Pump 100ml</button>
+                    <button onclick="sendRequest('pumpVar300')">Pump 300ml</button>
+                </div>
                 <br>
-                <label for="lightLevel">Light Level:</label>
-                <input type="range" id="lightLevel" name="lightLevel" min="1" max="10">
+                <button onclick="fetchAndDisplaySensorData()">Fetch Data</button>
                 <br>
-                <label for="lightHue">Light Hue:</label>
-                <input type="range" id="lightHue" name="lightHue" min="1" max="360">
+                <br>
+                <label for="requestUrl">Enter Full Request URL:</label>
+                <input type="text" id="requestUrl" name="requestUrl" value="http://172.20.10.9/motorOn">
+                <button onclick="sendCustomRequest()">Send Request</button>
+                <br>
+                <br>
+                <label for="sensorDataRaw">Raw Fetched Data: </label>
+                <div id="sensorDataRaw"></div>
+                <br>
+                <label for="sensorDataVars">Sensor Data Variables: </label>
+                <div id="sensorDataVars"></div>
+                <br>
+                <br>
+                <label for="debug">Debug1: </label>
+                <div id="debug"></div>
+                <br>
+                <label for="debug2">Debug2: </label>
+                <div id="debug2"></div>
+                <br>
+                <label for="debug3">Debug3: </label>
+                <div id="debug3"></div>
+                <br>
+                <label for="debug4">Debug4: </label>
+                <div id="debug4"></div>
+                <br>
+                <label for="httpbinData">Sample fetch: </label>
+                <div id="httpbinData"></div>
             </div>
         </div>
     `;
@@ -373,6 +418,156 @@ function showFrogDetails() {
     document.getElementById('plantDetail').style.display = 'block';
 }
 
+function sendRequest(endpoint) {
+    clearDebug();
+    const base = document.getElementById('ipAddress').value;
+    const slash = base.endsWith('/') ? '' : '/';
+    const url = base + slash + endpoint + '?nocache=${new Date().getTime()}';
+
+    console.log("Sending request to URL: " + url); // For debugging
+    document.getElementById('debug').textContent = url;
+
+    fetch(url, {
+         method: 'GET', // or 'POST'
+    })
+    .then(response => {
+        if(response.ok) {
+            console.log('Request successful');
+            document.getElementById('debug2').textContent = 'Request successful';
+        } else {
+            console.error('Request failed');
+            document.getElementById('debug2').textContent = 'Request failed';
+        }
+        return response.text(); // Use text() to dump whatever is received
+    })
+    .then(data => {
+        console.log("Data received:", data); // Log the raw data
+        // Optionally display the raw data on the web page
+        document.getElementById('sensorDataRaw').textContent = data;
+        updateSensorData(data);
+        document.getElementById('debug3').textContent = 'data field';
+    })
+    .catch(error => {
+        console.error('Error making request:', error);
+        document.getElementById('debug4').textContent = error;
+    });
+}
+
+function sendCustomRequest() {
+    clearDebug();
+    const url = document.getElementById('requestUrl').value + '?nocache=${new Date().getTime()}';
+
+    console.log("Sending request to URL: " + url); // For debugging
+    document.getElementById('debug').textContent = url;
+
+    fetch(url, {
+        method: 'GET', // or 'POST'
+    })
+    .then(response => {
+        if(response.ok) {
+            console.log('Request successful');
+            document.getElementById('debug2').textContent = 'Request successful';
+        } else {
+            console.error('Request failed');
+            document.getElementById('debug2').textContent = 'Request failed';
+        }
+        return response.text(); // Use text() to dump whatever is received
+    })
+    .then(data => {
+        console.log("Data received:", data); // Log the raw data
+        // Optionally display the raw data on the web page
+        document.getElementById('sensorDataRaw').textContent = data;
+        updateSensorData(data);
+        document.getElementById('debug3').textContent = 'data field';
+    })
+    .catch(error => {
+        console.error('Error making request:', error);
+        document.getElementById('debug4').textContent = error;
+    });
+}
+
+let globalLightLevel = 0;
+let globalMoistureLevel = 0;
+
+function fetchAndDisplaySensorData() {
+    clearDebug();
+    // Attempt to fetch data from httpbin.org
+    fetch('https://httpbin.org/get')
+    .then(response => response.json())
+    .then(data => {
+        // Successfully fetched data from httpbin.org
+        console.log(data); // Log the data for debugging
+        // Update the HTML to display httpbin data
+        document.getElementById('httpbinData').innerHTML = JSON.stringify(data, null, 2);
+    })
+    .catch(error => {
+        console.error('Error:', error); // Log the error
+        // Display a message indicating no data from httpbin.org
+        document.getElementById('httpbinData').textContent = "No httpbin data";
+    });
+
+    // Fetch from arduino
+    const base = document.getElementById('ipAddress').value;
+    const slash = base.endsWith('/') ? '' : '/';
+    const url = base + slash;
+    // const base = document.getElementById('ipAddress').value + '/sensor-data'; // If endpoint is needed
+    console.log("Sending request to URL: " + url); // For debugging
+    document.getElementById('debug').textContent = url;
+
+    fetch(url, {
+        method: 'GET', // or 'POST'
+    })
+    .then(response => {
+        if(response.ok) {
+            console.log('Request successful');
+            document.getElementById('debug2').textContent = 'Request successful';
+        } else {
+            console.error('Request failed');
+            document.getElementById('debug2').textContent = 'Request failed';
+        }
+        return response.text(); // Use text() to dump whatever is received
+    })
+    .then(data => {
+        console.log("Sensor Data:", data);
+        document.getElementById('sensorDataRaw').textContent = data;
+        updateSensorData(data);
+        document.getElementById('debug3').textContent = 'data field';
+    })
+    .catch(error => {
+        console.error('Error fetching sensor data', error);
+        document.getElementById('debug4').textContent = error;
+        document.getElementById('sensorDataRaw').textContent = "No data";
+    });
+}
+
+// Need to update based on data format
+function updateSensorData(data) {
+    // The "data" variable here is messed up due to using response.text in the above functions, may want to use response.json
+    const sensorDataVarsDiv = document.getElementById('sensorDataVars');
+    //Need to adjust the following based on data format
+    /*let lightLevelDisplay = typeof data.lightLevel === 'string' ? data.lightLevel : `Light Level: ${data.lightLevel}`;
+    let moistureLevelDisplay = typeof data.moistureLevel === 'string' ? data.moistureLevel : `Moisture Level: ${data.moistureLevel}`;
+
+    //This div no longer exists, use the sensorDataGlobal instead
+    sensorDataGlobalDiv.innerHTML = `
+        <p>${lightLevelDisplay}</p>
+        <p>${moistureLevelDisplay}</p>
+    `;*/
+
+    // For debugging, but these should remain 0 since the data isn't being parsed
+    const content = `
+        <p>Light Level: ${globalLightLevel}</p>
+        <p>Moisture Level: ${globalMoistureLevel}</p>
+    `;
+    sensorDataVarsDiv.innerHTML = content;
+}
+
+function clearDebug(){
+    document.getElementById('debug').textContent = 'Clear';
+    document.getElementById('debug2').textContent = 'Clear';
+    document.getElementById('debug3').textContent = 'Clear';
+    document.getElementById('debug4').textContent = 'Clear';
+}
 function navigate(page) {
     // Hide all pages
     document.querySelectorAll('.page').forEach(pageElement => pageElement.style.display = 'none');
